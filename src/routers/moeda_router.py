@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 from pymongo.collection import Collection
 from pymongo.cursor import Cursor
 
@@ -18,11 +18,11 @@ def list_coins(offset: int = 0, limit: int = 5) -> List[MoedaResponse]:
 
 @router.get('/{cod:str}')
 def get_coin(cod: str) -> MoedaResponse:
-    coin: Dict = col.find_one({"cod": cod}, {'_id': 0})
+    coin: Dict = col.find_one({'cod': cod}, {'_id': 0})
     if coin is None:
         raise HTTPException(status_code=404, detail={
-                "Message": "Moeda não encontrada",
-                "cod": cod}
+                'Message': f'Moeda não encontrada. Código: {cod}',
+                'status': 404}
             )
     return MoedaResponse.from_json(coin)
 
@@ -31,3 +31,29 @@ def register_coin(moeda: MoedaResponse) -> Dict:
     col.insert_one(moeda.to_json())
     return {'message': 'Moeda inserida com sucesso',
             'moeda': moeda}
+
+@router.patch('/{cod:str}', response_model=Dict, status_code=200)
+def update_coin(cod: str, parameters: Optional[Dict[str, Any]] = None) -> Dict:
+    # TODO Implementar verificação se existe a moeda na base de dados
+    if parameters is None:
+        raise HTTPException(status_code=400, detail={'message': 'Não foram passados parâmetros para atualização', 'status': 400})
+
+    old_coin: MoedaResponse = MoedaResponse.from_json(col.find_one({'cod': cod}, {'_id': 0}))
+    col.find_one_and_update({'cod': cod}, {'$set': parameters})
+    new_coin: MoedaResponse = MoedaResponse.from_json(col.find_one({'cod': cod}, {'_id': 0}))
+
+    return {
+        'message': f'Moeda {cod} atualizada com sucesso',
+        'before': old_coin,
+        'after': new_coin
+    }
+
+@router.delete('/{cod:str}')
+def delete_coin(cod: str) -> Dict:
+    # TODO Implementar verificação se existe a moeda na base de dados
+    coin: MoedaResponse = MoedaResponse.from_json(col.find_one({'cod': cod}, {'_id': 0}))
+    col.delete_one({'cod': cod})
+    return {
+        'message': 'Moeda deletada com sucesso',
+        'coin': coin
+    }
