@@ -9,7 +9,7 @@ import src.routers as routers
 load_dotenv()
 app: FastAPI = FastAPI()
 
-routers_to_include: list[APIRouter] = [routers.moeda_router]
+routers_to_include: list[APIRouter] = [routers.moeda_router, routers.conversor_router]
 for rout in routers_to_include:
     app.include_router(rout)
 
